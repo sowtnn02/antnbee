@@ -71,7 +71,7 @@
 <body>
   <h1>
     <a href="index.html" style="text-decoration: none; color: inherit;">
-      🐝 荒野保護協會親子團南二團 小隊出席狀況 🐜 <br> **** 這是測試頁面，114學年小隊名單是假的 ****
+      🐝 荒野保護協會親子團南二團 小隊出席狀況 🐜
     </a>
   </h1>
   <div class="card">
@@ -87,31 +87,31 @@
     <ul id="result"></ul>
   </div>
 
-  <!-- 載入兩份名單 -->
   <script src="team-data113.js"></script>
   <script src="team-data114.js"></script>
   <script>
-    let userOptions = userOptions113; // 預設名單
+    let userOptions = userOptions113; // 預設為113名單
+
+    // 固定的小隊選單
+    const teamTypes = {
+      bee: [" ","泥壺蜂", "長腳蜂", "細腰蜂", "虎頭蜂"],
+      ant: [" ","小黑蟻", "小黃蟻", "小綠蟻", "小紅蟻"]
+    };
 
     const SHEET_URL = "https://opensheet.elk.sh/13v4T864SSZGSoNiIPGOY12mfzT2q5sbvDrarusC_zLE/%E8%9C%82%E8%9F%BB";
 
     async function loadSheetsFromSheet() {
       const res = await fetch(SHEET_URL);
       const raw = await res.json();
-
-      // 轉換並排序（由舊到新）
-      const sorted = raw
+      return raw
         .map(item => ({
           name: `${item.month} ${item.title}`,
           url: convertToOpensheet(item.response_url),
           month: item.month,
-          ym: getYearMonthNumber(item.month)  // 加入年月數字方便排序
+          ym: getYearMonthNumber(item.month)
         }))
-        .sort((a, b) => a.ym - b.ym);  // 由新到舊排列
-
-      return sorted;
+        .sort((a, b) => a.ym - b.ym); // 舊到新排序
     }
-
 
     function convertToOpensheet(googleSheetUrl) {
       const match = googleSheetUrl.match(/\/d\/(.*?)(\/|$)/);
@@ -130,10 +130,9 @@
       const typeSelect = document.getElementById("type");
       typeSelect.innerHTML = "";
 
-      if (group && userOptions[group]) {
+      if (group && teamTypes[group]) {
         typeSelect.disabled = false;
-        const types = Object.keys(userOptions[group]);
-        types.forEach(type => {
+        teamTypes[group].forEach(type => {
           const option = document.createElement("option");
           option.value = type;
           option.textContent = type;
@@ -142,7 +141,7 @@
       } else {
         typeSelect.disabled = true;
         const option = document.createElement("option");
-        option.textContent = "請先選擇上方類別";
+        option.textContent = "請先選擇上方團別";
         typeSelect.appendChild(option);
       }
     }
@@ -167,8 +166,6 @@
 
       for (let sheet of sheets) {
         const ym = getYearMonthNumber(sheet.month);
-
-        // 🔁 改這裡即可
         if (ym >= 202507 && ym <= 202606) {
           userOptions = userOptions114;
         } else if (ym >= 202407 && ym <= 202506) {
@@ -180,9 +177,7 @@
           continue;
         }
 
-      if (!group || !type || !userOptions[group] || !userOptions[group][type]) continue;
-
-
+        if (!group || !type || !userOptions[group] || !userOptions[group][type]) continue;
         const users = userOptions[group][type];
         const userStatus = {};
         users.forEach(name => userStatus[name] = { filled: false, submitted: false });
