@@ -151,7 +151,7 @@
 
       for (let sheet of sheets) {
         const userStatus = {};
-        users.forEach(name => userStatus[name] = { filled: false });
+        users.forEach(name => userStatus[name] = { filled: false, submitted: false });
 
         try {
           const res = await fetchWithTimeout(sheet.url + "?t=" + Date.now(), 5000);
@@ -163,6 +163,8 @@
             const username = values[1];
             if (!username || !users.includes(username)) return;
 
+            userStatus[username].submitted = true;
+
             for (let i = 0; i < 3; i++) {
               const childName = values[2 + i * 3];
               const squad = values[3 + i * 3];
@@ -170,6 +172,7 @@
               if (squad === type) {
                 userStatus[username] = {
                   filled: true,
+                  submitted: true,
                   child: childName || '(未填小孩名)',
                   status: status || '出席'
                 };
@@ -199,12 +202,15 @@
           if (userStatus[name].filled) {
             const isPresent = userStatus[name].status.includes("出席");
             li.innerHTML = `${name}：${userStatus[name].child}/<span class="${isPresent ? 'status-present' : 'status-absent'}">${isPresent ? '✅ 出席' : '❌ 請假'}</span>`;
+          } else if (userStatus[name].submitted) {
+            li.innerHTML = `${name}：<span style="color: orange; font-weight: bold;">⚠️ 有填表，但未填本小隊</span>`;
           } else {
             li.innerHTML = `${name}：<span class="status-unfilled">未填寫</span>`;
           }
           resultList.appendChild(li);
         });
       }
+
       loading.textContent = "";
     }
   </script>
