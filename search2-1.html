@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -71,17 +72,25 @@
 <body>
   <h1>
     <a href="index.html" style="text-decoration: none; color: inherit;">
-      🐝 荒野保護協會親子團南二團 小隊出席狀況 🐜
+      🐝 荒野保護協會親子團南二團 小隊出席狀況 🐜<br>**** 這是測試頁面，114學年小隊名單是假的 ****
     </a>
   </h1>
   <div class="card">
-    <select id="group" onchange="updateTypeOptions()">
+    <select id="group" onchange="filterTeamOptions()">
       <option value="">選擇團別</option>
       <option value="bee">🐝 小蜂 🐝</option>
       <option value="ant">🐜 小蟻 🐜</option>
     </select>
     <select id="type" onchange="checkTeamAttendance()" disabled>
       <option value="">選擇小隊</option>
+      <option value="泥壺蜂" data-group="bee">泥壺蜂</option>
+      <option value="長腳蜂" data-group="bee">長腳蜂</option>
+      <option value="細腰蜂" data-group="bee">細腰蜂</option>
+      <option value="虎頭蜂" data-group="bee">虎頭蜂</option>
+      <option value="小黑蟻" data-group="ant">小黑蟻</option>
+      <option value="小黃蟻" data-group="ant">小黃蟻</option>
+      <option value="小綠蟻" data-group="ant">小綠蟻</option>
+      <option value="小紅蟻" data-group="ant">小紅蟻</option>
     </select>
     <div id="loading" style="margin-top: 20px; font-size: 1.1em; color: #888;"></div>
     <ul id="result"></ul>
@@ -90,15 +99,31 @@
   <script src="team-data113.js"></script>
   <script src="team-data114.js"></script>
   <script>
-    let userOptions = userOptions113; // 預設為113名單
+    let userOptions = userOptions113;
 
-    // 固定的小隊選單
-    const teamTypes = {
-      bee: [" ","泥壺蜂", "長腳蜂", "細腰蜂", "虎頭蜂"],
-      ant: [" ","小黑蟻", "小黃蟻", "小綠蟻", "小紅蟻"]
-    };
+    function filterTeamOptions() {
+      const group = document.getElementById("group").value;
+      const typeSelect = document.getElementById("type");
+      typeSelect.disabled = false;
+      for (let i = 0; i < typeSelect.options.length; i++) {
+        const option = typeSelect.options[i];
+        if (option.value === "") {
+          option.hidden = false;
+          option.disabled = false;
+        } else {
+          option.hidden = option.getAttribute("data-group") !== group;
+        }
+      }
+      typeSelect.value = "";
+    }
 
     const SHEET_URL = "https://opensheet.elk.sh/13v4T864SSZGSoNiIPGOY12mfzT2q5sbvDrarusC_zLE/%E8%9C%82%E8%9F%BB";
+
+    function getYearMonthNumber(monthStr) {
+      const match = monthStr.match(/(\d{4})[\/\-](\d{1,2})/);
+      if (!match) return 0;
+      return parseInt(match[1]) * 100 + parseInt(match[2]);
+    }
 
     async function loadSheetsFromSheet() {
       const res = await fetch(SHEET_URL);
@@ -119,33 +144,6 @@
       return `https://opensheet.elk.sh/${sheetId}/%E8%A1%A8%E5%96%AE%E5%9B%9E%E6%87%89%201`;
     }
 
-    function getYearMonthNumber(monthStr) {
-      const match = monthStr.match(/(\d{4})[\/\-](\d{1,2})/);
-      if (!match) return 0;
-      return parseInt(match[1]) * 100 + parseInt(match[2]);
-    }
-
-    function updateTypeOptions() {
-      const group = document.getElementById("group").value;
-      const typeSelect = document.getElementById("type");
-      typeSelect.innerHTML = "";
-
-      if (group && teamTypes[group]) {
-        typeSelect.disabled = false;
-        teamTypes[group].forEach(type => {
-          const option = document.createElement("option");
-          option.value = type;
-          option.textContent = type;
-          typeSelect.appendChild(option);
-        });
-      } else {
-        typeSelect.disabled = true;
-        const option = document.createElement("option");
-        option.textContent = "請先選擇上方團別";
-        typeSelect.appendChild(option);
-      }
-    }
-
     function fetchWithTimeout(url, timeout = 5000) {
       return Promise.race([
         fetch(url),
@@ -154,11 +152,11 @@
     }
 
     async function checkTeamAttendance() {
-      const group = document.getElementById("group").value;
-      const type = document.getElementById("type").value;
+      const typeSelect = document.getElementById("type");
+      const type = typeSelect.value;
+      const group = typeSelect.options[typeSelect.selectedIndex].dataset.group;
       const resultList = document.getElementById("result");
       const loading = document.getElementById("loading");
-
       resultList.innerHTML = "";
       if (loading) loading.textContent = "🔍 查詢中，請稍候...";
 
