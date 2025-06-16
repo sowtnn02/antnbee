@@ -88,77 +88,83 @@
   </div>
 
   <script src="team-data114.js"></script>
-  <script>
+    <script>
     const SHEET_URL = "https://opensheet.elk.sh/13v4T864SSZGSoNiIPGOY12mfzT2q5sbvDrarusC_zLE/%E8%9C%82%E8%9F%BB";
 
+    const backupNameMap = {
+        bee: "炫蜂團",
+        ant: "小蟻團"
+    };
+
     async function loadSheetsFromSheet() {
-      const res = await fetch(SHEET_URL);
-      const raw = await res.json();
-      return raw.map(item => ({
+        const res = await fetch(SHEET_URL);
+        const raw = await res.json();
+        return raw.map(item => ({
         name: `${item.month} ${item.title}`,
         url: convertToOpensheet(item.response_url)
-      }));
+        }));
     }
 
     function convertToOpensheet(googleSheetUrl) {
-      const match = googleSheetUrl.match(/\/d\/(.*?)(\/|$)/);
-      const sheetId = match ? match[1] : "";
-      return `https://opensheet.elk.sh/${sheetId}/%E8%A1%A8%E5%96%AE%E5%9B%9E%E6%87%89%201`;
+        const match = googleSheetUrl.match(/\/d\/(.*?)(\/|$)/);
+        const sheetId = match ? match[1] : "";
+        return `https://opensheet.elk.sh/${sheetId}/%E8%A1%A8%E5%96%AE%E5%9B%9E%E6%87%89%201`;
     }
 
     function updateTypeOptions() {
-      const group = document.getElementById("group").value;
-      const typeSelect = document.getElementById("type");
-      typeSelect.innerHTML = "";
+        const group = document.getElementById("group").value;
+        const typeSelect = document.getElementById("type");
+        typeSelect.innerHTML = "";
 
-      if (group && userOptions[group]) {
+        if (group && userOptions[group]) {
         typeSelect.disabled = false;
         const types = Object.keys(userOptions[group]);
         types.forEach(type => {
-          const option = document.createElement("option");
-          option.value = type;
-          option.textContent = type;
-          typeSelect.appendChild(option);
+            const option = document.createElement("option");
+            option.value = type;
+            option.textContent = type;
+            typeSelect.appendChild(option);
         });
-      } else {
+        } else {
         typeSelect.disabled = true;
         const option = document.createElement("option");
         option.textContent = "請先選擇上方類別";
         typeSelect.appendChild(option);
-      }
+        }
     }
 
     function fetchWithTimeout(url, timeout = 5000) {
-      return Promise.race([
+        return Promise.race([
         fetch(url),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeout))
-      ]);
+        ]);
     }
 
     async function checkTeamAttendance() {
-      const group = document.getElementById("group").value;
-      const type = document.getElementById("type").value;
-      const resultList = document.getElementById("result");
-      const loading = document.getElementById("loading");
+        const group = document.getElementById("group").value;
+        const type = document.getElementById("type").value;
+        const resultList = document.getElementById("result");
+        const loading = document.getElementById("loading");
 
-      resultList.innerHTML = "";
-      if (loading) loading.textContent = "🔍 查詢中，請稍候...";
+        resultList.innerHTML = "";
+        if (loading) loading.textContent = "🔍 查詢中，請稍候...";
 
-      if (!group || !type || !userOptions[group][type]) return;
-      const users = userOptions[group][type];
+        if (!group || !type || !userOptions[group][type]) return;
+        const users = userOptions[group][type];
+        const backupName = backupNameMap[group] || "";
 
-      const sheets = await loadSheetsFromSheet();
+        const sheets = await loadSheetsFromSheet();
 
-      for (let sheet of sheets) {
+        for (let sheet of sheets) {
         const userStatus = {};
         users.forEach(name => userStatus[name] = { filled: false, submitted: false });
 
         try {
-          const res = await fetchWithTimeout(sheet.url + "?t=" + Date.now(), 5000);
-          if (!res.ok) throw new Error("無法連接");
-          const data = await res.json();
+            const res = await fetchWithTimeout(sheet.url + "?t=" + Date.now(), 5000);
+            if (!res.ok) throw new Error("無法連接");
+            const data = await res.json();
 
-          data.forEach(row => {
+            data.forEach(row => {
             const values = Object.values(row);
             const username = values[1];
             if (!username || !users.includes(username)) return;
@@ -166,24 +172,26 @@
             userStatus[username].submitted = true;
 
             for (let i = 0; i < 3; i++) {
-              const childName = values[2 + i * 3];
-              const squad = values[3 + i * 3];
-              const status = values[4 + i * 3];
-              if (squad === type) {
+                const childName = values[2 + i * 3];
+                const squad = values[3 + i * 3];
+                const status = values[4 + i * 3];
+
+                // 這裡加上備援判斷
+                if (squad === type || squad === backupName) {
                 userStatus[username] = {
-                  filled: true,
-                  submitted: true,
-                  child: childName || '(未填小孩名)',
-                  status: status || '出席'
+                    filled: true,
+                    submitted: true,
+                    child: childName || '(未填小孩名)',
+                    status: status || '出席'
                 };
-              }
+                }
             }
-          });
+            });
         } catch (e) {
-          const li = document.createElement("li");
-          li.textContent = `${sheet.name}：⚠️ 查詢失敗（${e.message === "Timeout" ? "連線逾時" : "無法讀取"})`;
-          resultList.appendChild(li);
-          continue;
+            const li = document.createElement("li");
+            li.textContent = `${sheet.name}：⚠️ 查詢失敗（${e.message === "Timeout" ? "連線逾時" : "無法讀取"})`;
+            resultList.appendChild(li);
+            continue;
         }
 
         const header = document.createElement("li");
@@ -198,21 +206,22 @@
         resultList.appendChild(header);
 
         users.forEach(name => {
-          const li = document.createElement("li");
-          if (userStatus[name].filled) {
+            const li = document.createElement("li");
+            if (userStatus[name].filled) {
             const isPresent = userStatus[name].status.includes("出席");
             li.innerHTML = `${name}：${userStatus[name].child}/<span class="${isPresent ? 'status-present' : 'status-absent'}">${isPresent ? '✅ 出席' : '❌ 請假'}</span>`;
-          } else if (userStatus[name].submitted) {
+            } else if (userStatus[name].submitted) {
             li.innerHTML = `${name}：<span style="color: orange; font-weight: bold;">⚠️ 有填表，但未填本小隊</span>`;
-          } else {
+            } else {
             li.innerHTML = `${name}：<span class="status-unfilled">未填寫</span>`;
-          }
-          resultList.appendChild(li);
+            }
+            resultList.appendChild(li);
         });
-      }
+        }
 
-      loading.textContent = "";
+        loading.textContent = "";
     }
-  </script>
+    </script>
+
 </body>
 </html>
