@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>荒野南二小蟻團 - 潛能探索測驗</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f5f5f4; /* Stone 100 */
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .option-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .option-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Result Bar Animation */
+        .bar-fill {
+            transition: width 1s ease-in-out;
+            width: 0%;
+        }
+    </style>
+</head>
+<body class="text-stone-800 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- 頂部標題列 -->
+    <header class="fixed top-0 w-full bg-white/80 backdrop-blur-sm shadow-sm z-10 py-4">
+        <div class="max-w-2xl mx-auto px-4 flex justify-between items-center">
+            <h1 class="text-lg font-bold text-green-800 tracking-wide">荒野南二小蟻團</h1>
+            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">潛能探索</span>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <main class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden mt-16 mb-8 relative min-h-[500px] flex flex-col">
+        
+        <!-- 進度條 -->
+        <div id="progress-container" class="w-full h-2 bg-stone-200 hidden">
+            <div id="progress-bar" class="h-full bg-green-600 transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- 1. 歡迎頁面 -->
+        <div id="welcome-screen" class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6 fade-in">
+            <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-stone-800">導引員特質探索測驗</h2>
+            <p class="text-stone-600 leading-relaxed">
+                在荒野親子團中，每個人都有適合自己的位置。<br>
+                你是喜歡與孩子一起冒險的「孩子王」？<br>
+                還是擅長守護團隊、運籌帷幄的「神隊友」？<br>
+                <br>
+                透過 10 個情境題，找出你的天賦所在！
+            </p>
+            <button onclick="startQuiz()" class="mt-4 px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full shadow-lg transform transition hover:-translate-y-1">
+                開始探索
+            </button>
+        </div>
+
+        <!-- 2. 測驗頁面 -->
+        <div id="quiz-screen" class="hidden flex-1 flex flex-col p-6 sm:p-8 fade-in">
+            <div class="flex-1">
+                <span id="question-number" class="text-sm font-semibold text-green-600 mb-2 block">Question 1/10</span>
+                <h3 id="question-text" class="text-xl font-bold text-stone-800 mb-8 leading-snug min-h-[3.5rem]">
+                    題目載入中...
+                </h3>
+                
+                <div id="options-container" class="space-y-4">
+                    <!-- 選項將由 JS 動態生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 結果頁面 -->
+        <div id="result-screen" class="hidden flex-1 flex flex-col p-6 sm:p-8 fade-in overflow-y-auto">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-stone-800 mb-2">探索結果分析</h2>
+                <p class="text-stone-500 text-sm">你的特質傾向分佈圖</p>
+            </div>
+
+            <!-- 視覺化天平 -->
+            <div class="mb-8">
+                <div class="flex justify-between items-end mb-2 px-2">
+                    <div class="text-center w-1/3">
+                        <span class="text-3xl" id="ant-emoji">🐜</span>
+                        <div class="text-sm font-bold text-green-700 mt-1">小蟻導引員</div>
+                        <div class="text-xs text-stone-500">創意與童心</div>
+                    </div>
+                    <div class="text-center w-1/3">
+                        <span class="text-3xl" id="parent-emoji">🛡️</span>
+                        <div class="text-sm font-bold text-blue-700 mt-1">育成會導引員</div>
+                        <div class="text-xs text-stone-500">邏輯與守護</div>
+                    </div>
+                </div>
+                
+                <!-- 結果條 -->
+                <div class="h-6 w-full bg-stone-200 rounded-full overflow-hidden flex shadow-inner relative">
+                    <div id="ant-bar" class="h-full bg-green-500 bar-fill flex items-center justify-center text-[10px] text-white font-bold tracking-wider"></div>
+                    <div id="parent-bar" class="h-full bg-blue-500 bar-fill flex items-center justify-center text-[10px] text-white font-bold tracking-wider"></div>
+                    
+                    <!-- 中心線 -->
+                    <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/50 z-10"></div>
+                </div>
+                
+                <div class="flex justify-between mt-2 text-sm font-bold px-1">
+                    <span id="ant-score-text" class="text-green-600">0%</span>
+                    <span id="parent-score-text" class="text-blue-600">0%</span>
+                </div>
+            </div>
+
+            <!-- 結果說明區塊 -->
+            <div class="bg-stone-50 rounded-xl p-6 border border-stone-200 shadow-sm">
+                <h3 id="result-title" class="text-xl font-bold text-center mb-4 text-stone-800">分析中...</h3>
+                <div id="result-desc" class="text-stone-700 text-sm leading-relaxed space-y-3">
+                    <!-- 結果描述 -->
+                </div>
+                
+                <div class="mt-6 pt-6 border-t border-stone-200">
+                    <h4 class="font-bold text-stone-800 mb-2 text-sm">適合你的任務：</h4>
+                    <ul id="result-tasks" class="list-disc list-inside text-sm text-stone-600 space-y-1">
+                        <!-- 任務列表 -->
+                    </ul>
+                </div>
+            </div>
+
+            <button onclick="restartQuiz()" class="mt-8 w-full py-3 bg-stone-800 hover:bg-stone-900 text-white font-bold rounded-lg transition">
+                重新測試
+            </button>
+        </div>
+
+    </main>
+
+    <footer class="text-center text-stone-400 text-xs py-4">
+        © 荒野保護協會 親子團
+    </footer>
+
+    <script>
+        // 題目資料庫
+        // type: 'ant' = 小蟻導引員, 'parent' = 育成會導引員
+        const questions = [
+            {
+                text: "終於等到連假，你負責規劃一場家族或朋友的過夜旅行，對於行程安排你的風格比較接近？",
+                options: [
+                    { text: "只訂好住宿，剩下的看當天心情和天氣，走到哪玩到哪，迷路也是一種樂趣。", type: "ant" },
+                    { text: "事先查好交通路線、列出必吃清單，甚至會用 Excel 算出預算，確保行程順暢不踩雷。", type: "parent" },
+                    { text: "特別專注於尋找當地的「獨特體驗」，例如預約做陶藝、採果或特殊的在地祭典。", type: "ant" },
+                    { text: "會先確認同行者有沒有人吃素、長輩能不能走久、房間夠不夠分，大家的需求都能被照顧到最重要。", type: "parent" }
+                ]
+            },
+            {
+                text: "大家一起去戶外野餐，結果突然下起了一陣午後雷陣雨，一片混亂中，你的第一個直覺反應通常是？",
+                options: [
+                    { text: "立刻判斷雨勢，指揮大家先把怕濕的電子產品收好，並迅速清點人數確認撤退路線。", type: "parent" },
+                    { text: "大笑說「哇！這下變落湯雞了！」，甚至開玩笑拿起野餐墊當披風，試著緩解大家的掃興感。", type: "ant" },
+                    { text: "第一時間先看有沒有人滑倒、有沒有孩子嚇到，趕快拿出毛巾幫大家擦乾。", type: "parent" },
+                    { text: "既然都濕了，乾脆提議大家去踩水坑，或是觀察雨後的蝸牛跑出來了沒。", type: "ant" }
+                ]
+            },
+            {
+                text: "如果你有一個超能力，可以用在團隊活動中，你希望是下列哪一種？",
+                options: [
+                    { text: "不用說話就能知道夥伴現在累不累、餓不餓，能完美補位，遞上對方需要的東西。", type: "parent" },
+                    { text: "可以隨手把路邊的石頭變成寶石，把樹枝變成寶劍，隨時隨地都能變出新花樣驚艷全場。", type: "ant" },
+                    { text: "能夠精準掌控時間流逝，確保所有活動都在預定的流程內完美結束，絕不超時。", type: "parent" },
+                    { text: "可以跟森林裡的小動物說話，聽懂鳥叫的意思，並翻譯給大家聽。", type: "ant" }
+                ]
+            },
+            {
+                text: "在一場熱鬧的派對聚會中，你通常會發現自己處於什麼樣的狀態？",
+                options: [
+                    { text: "待在廚房幫忙補食物、倒飲料，或是默默收拾大家製造的垃圾，確保環境舒適。", type: "parent" },
+                    { text: "不知道為什麼，最後都會跟現場的小朋友或寵物玩成一團，甚至趴在地上玩。", type: "ant" },
+                    { text: "拿著麥克風帶動氣氛，或是講笑話逗得大家哈哈大笑，是聚會的焦點。", type: "ant" },
+                    { text: "找一兩個朋友在角落安靜地聊天，分享彼此最近的生活感觸或工作心得。", type: "parent" }
+                ]
+            },
+            {
+                text: "當你需要向別人說明一件比較複雜的事情（例如新的遊戲規則）時，你習慣怎麼做？",
+                options: [
+                    { text: "用「就像哈利波特去霍格華茲一樣...」這種生動的比喻，讓對方腦中先有畫面。", type: "ant" },
+                    { text: "第一步做什麼、第二步做什麼，條理分明地列出來，確保對方不會弄錯順序。", type: "parent" },
+                    { text: "懶得講太多，直接演一遍給你看：「你看喔！就是這樣跳過去！」", type: "ant" },
+                    { text: "說明完後會反問對方：「這樣清楚嗎？有沒有哪個部分需要我再解釋一次？」", type: "parent" }
+                ]
+            },
+            {
+                text: "在路上看到一個小朋友跌倒大哭，雖然你不認識他，但你的直覺行動偏向？",
+                options: [
+                    { text: "先檢查有沒有流血、有沒有骨折，判斷需不需要擦藥或送醫。", type: "parent" },
+                    { text: "蹲下來做個鬼臉，或是指著旁邊的小花說：「痛痛飛到花上面去了喔！」", type: "ant" },
+                    { text: "安撫的同時，抬頭環顧四周尋找他的家長在哪裡，或請路人幫忙。", type: "parent" },
+                    { text: "給他一個溫暖的擁抱，拍拍他的背，用溫柔的聲音跟他說：「我知道好痛喔，沒事了。」", type: "ant" }
+                ]
+            },
+            {
+                text: "周末在家大掃除，翻到一箱舊照片和舊玩具，這時你會？",
+                options: [
+                    { text: "雖然會看一下，但為了效率，還是會果斷分類「留」與「丟」，按計畫把空間清出來。", type: "parent" },
+                    { text: "忍不住拿起來把玩，甚至開始模仿小時候玩玩具的樣子，完全忘記要打掃。", type: "ant" },
+                    { text: "去買收納盒，把照片依照年份貼上標籤，把玩具擦乾淨整齊收好。", type: "parent" },
+                    { text: "馬上拍照傳到群組給家人朋友看，或是直接拿去騷擾另一半：「你看這個！超懷念的！」", type: "ant" }
+                ]
+            },
+            {
+                text: "假設你參加荒野的自然觀察活動，看到一隻長得很奇怪的毛毛蟲，你最想做的是？",
+                options: [
+                    { text: "覺得牠身上的花紋很像外星人的臉，開始編一個牠是來地球探險的故事。", type: "ant" },
+                    { text: "觀察牠的特徵，翻書或用 APP 查出牠正確的學名和食草是什麼。", type: "parent" },
+                    { text: "提醒旁邊的人不要隨便摸，因為顏色鮮豔的毛毛蟲可能有毒毛，要保持距離。", type: "parent" },
+                    { text: "試著學牠蠕動的樣子，或是觀察牠怎麼吃葉子，覺得牠的動作超級療癒。", type: "ant" }
+                ]
+            },
+            {
+                text: "團隊正在開會討論下個月的活動主題，大家意見分歧僵持不下，這時你通常會扮演什麼角色？",
+                options: [
+                    { text: "看了看手錶提醒大家：「我們還有20分鐘，如果要做出決議，建議我們先聚焦在可行性上。」", type: "parent" },
+                    { text: "跳出來說：「不然我們不要二選一，把這兩個想法混在一起變成一個大亂鬥如何？」", type: "ant" },
+                    { text: "發現氣氛太僵，會講個笑話緩頰，或是提議大家先喝口水、吃個點心再繼續。", type: "ant" },
+                    { text: "冷靜地幫大家把 A 案和 B 案的優缺點寫在白板上，幫助大家理性判斷。", type: "parent" }
+                ]
+            },
+            {
+                text: "如果要送一份生日禮物給好朋友，你比較傾向挑選？",
+                options: [
+                    { text: "觀察他最近缺什麼（例如保溫瓶、行動電源），買一個品質好又耐用的送他。", type: "parent" },
+                    { text: "設計一個尋寶遊戲讓他去找禮物，或是送一個雖然無用但會讓他笑出來的怪東西。", type: "ant" },
+                    { text: "親手做一張卡片或小餅乾，雖然不完美，但充滿了滿滿的情感。", type: "ant" },
+                    { text: "送他一本他最近工作需要的工具書，或是幫他整理好他一直沒空弄的電腦檔案。", type: "parent" }
+                ]
+            }
+        ];
+
+        let currentQuestion = 0;
+        let antScore = 0;
+        let parentScore = 0;
+
+        // Shuffle function for options
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startQuiz() {
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            document.getElementById('progress-container').classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const questionData = questions[currentQuestion];
+            const progressPercent = ((currentQuestion + 1) / questions.length) * 100;
+            
+            // Render Progress
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+            document.getElementById('question-number').innerText = `Question ${currentQuestion + 1}/${questions.length}`;
+
+            // Render Text with Animation
+            const questionTextEl = document.getElementById('question-text');
+            questionTextEl.style.opacity = '0';
+            setTimeout(() => {
+                questionTextEl.innerText = questionData.text;
+                questionTextEl.style.opacity = '1';
+                questionTextEl.style.transition = 'opacity 0.3s ease';
+            }, 100);
+
+            // Render Options
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            // Clone options to avoid modifying original order permanently if we wanted, 
+            // but here we just shuffle a copy for display
+            let displayOptions = [...questionData.options];
+            shuffleArray(displayOptions);
+
+            displayOptions.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn w-full text-left p-4 rounded-xl border border-stone-200 bg-white hover:bg-green-50 hover:border-green-300 text-stone-700 font-medium shadow-sm flex items-start fade-in";
+                btn.style.animationDelay = `${index * 0.1}s`;
+                
+                btn.innerHTML = `
+                    <span class="inline-block w-6 h-6 rounded-full bg-stone-100 text-stone-500 text-xs flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">${String.fromCharCode(65 + index)}</span>
+                    <span>${option.text}</span>
+                `;
+                btn.onclick = () => selectOption(option.type);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function selectOption(type) {
+            if (type === 'ant') {
+                antScore++;
+            } else {
+                parentScore++;
+            }
+
+            currentQuestion++;
+
+            if (currentQuestion < questions.length) {
+                renderQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('progress-container').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            const total = questions.length;
+            const antPercent = Math.round((antScore / total) * 100);
+            const parentPercent = Math.round((parentScore / total) * 100);
+
+            // Update Bars
+            setTimeout(() => {
+                document.getElementById('ant-bar').style.width = `${antPercent}%`;
+                document.getElementById('parent-bar').style.width = `${parentPercent}%`;
+                document.getElementById('ant-bar').innerText = antPercent > 10 ? `${antPercent}%` : '';
+                document.getElementById('parent-bar').innerText = parentPercent > 10 ? `${parentPercent}%` : '';
+            }, 300);
+
+            document.getElementById('ant-score-text').innerText = `${antPercent}%`;
+            document.getElementById('parent-score-text').innerText = `${parentPercent}%`;
+
+            // Result Logic
+            const resultTitle = document.getElementById('result-title');
+            const resultDesc = document.getElementById('result-desc');
+            const resultTasks = document.getElementById('result-tasks');
+
+            if (antScore > parentScore) {
+                // Dominant Ant
+                resultTitle.innerHTML = `<span class="text-green-600">童心未泯的魔法師</span> (適合小蟻導引員)`;
+                resultDesc.innerHTML = `
+                    <p>你的內心住著一個長不大的孩子！對於世界充滿好奇，不害怕混亂，甚至能在混亂中找到樂趣。你擁有將生硬知識轉化為有趣故事的超能力，這正是小蟻團最需要的特質。</p>
+                    <p>比起按表操課，你更擅長感受當下的氛圍，並用創意解決問題。在孩子眼中，你不是嚴肅的大人，而是可以一起瘋狂的玩伴。</p>
+                `;
+                resultTasks.innerHTML = `
+                    <li>活動設計與帶領：將自然知識轉化為遊戲與故事。</li>
+                    <li>小隊經營：成為孩子最信任的大朋友，照顧他們的情緒。</li>
+                    <li>氣氛營造：用你的熱情與感染力點燃團隊的活力。</li>
+                `;
+            } else if (parentScore > antScore) {
+                // Dominant Parent
+                resultTitle.innerHTML = `<span class="text-blue-600">溫柔堅定的支持者</span> (適合育成會導引員)`;
+                resultDesc.innerHTML = `
+                    <p>你是團隊中的定海神針！思慮周全、邏輯清晰，總能看見別人沒注意到的細節與風險。比起站在舞台中央，你更享受在幕後確保一切順利運作的成就感。</p>
+                    <p>面對問題時，你習慣用理性與制度解決，這種成熟穩重的特質，能讓家長們感到無比安心，是團隊不可或缺的後盾。</p>
+                `;
+                resultTasks.innerHTML = `
+                    <li>後勤支援：處理交通、食宿、裝備等繁雜事務。</li>
+                    <li>成人溝通：作為家長之間的橋樑，處理平行溝通與協調。</li>
+                    <li>風險控管：預想突發狀況並建立標準作業流程(SOP)。</li>
+                `;
+            } else {
+                // Balanced
+                resultTitle.innerHTML = `<span class="text-purple-600">全方位的神隊友</span> (兩者皆宜)`;
+                resultDesc.innerHTML = `
+                    <p>太厲害了！你同時具備了感性的童心與理性的邏輯。你能跟孩子玩成一片，也能轉過身來冷靜處理行政事務。</p>
+                    <p>你是團隊中的「活棋」，建議你可以思考自己在哪種狀態下比較「放鬆」？是跟人互動時？還是處理事情時？選擇讓你能量消耗較少的位置，能讓你走得更長久。</p>
+                `;
+                resultTasks.innerHTML = `
+                    <li>小蟻團：你可以擔任具有組織能力的小隊長或活動總召。</li>
+                    <li>育成會：你可以負責策劃活動內容，發揮創意。</li>
+                    <li>跨界支援：在需要時隨時補位，成為雙方的橋樑。</li>
+                `;
+            }
+        }
+
+        function restartQuiz() {
+            currentQuestion = 0;
+            antScore = 0;
+            parentScore = 0;
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('welcome-screen').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
