@@ -191,10 +191,19 @@
     </div>
   </div>
 
-  <script>
-    const SHEET_ID = "1_yffIOhto8dSwRCcmndN1KucMddrcqcuNgGM7yU9gH4";
+<script>
+    // ==========================================
+    // 1. 公告系統設定 (維持原本設定)
+    // ==========================================
+    const SHEET_ID_NEWS = "1_yffIOhto8dSwRCcmndN1KucMddrcqcuNgGM7yU9gH4"; // 公告用的 ID
 
-    // 處理連結與換行
+    // ==========================================
+    // 2. 表單系統設定 (新資料庫)
+    // ==========================================
+    const FORM_DB_ID = "1rsQZORmQldGeco9YRNUn9jaO10ogvXpsVSqjk4Z8Ur0"; // 新的表單資料庫 ID
+    const MY_PROXY_URL = "https://script.google.com/macros/s/AKfycbxmzTs-dGe8rlGjeaUJH44bravhTNccqFsfImSz_wV-bSniF-E1aOqZ6nyShvyVYAtFCQ/exec";
+
+    // --- 輔助函式：處理文字連結與換行 ---
     function formatContent(text) {
       if (!text) return "";
       const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -204,8 +213,11 @@
       return linkedText.replace(/\n/g, "<br>");
     }
 
+    // ==========================================
+    // 3. 載入公告 (News) - 維持原本邏輯
+    // ==========================================
     async function fetchNews(group, containerId, type) {
-      const url = `https://opensheet.elk.sh/${SHEET_ID}/${group}_News`;
+      const url = `https://opensheet.elk.sh/${SHEET_ID_NEWS}/${group}_News`;
       const container = document.getElementById(containerId);
       
       try {
@@ -216,15 +228,16 @@
         const today = new Date();
         today.setHours(0, 0, 0, 0); 
 
+        // 過濾公告日期
         data = data.filter(item => {
           const startDate = new Date(item.date);
           startDate.setHours(0, 0, 0, 0);
-          if (startDate > today) return false; // 排程：時間未到不顯示
+          if (startDate > today) return false; // 時間未到
 
           if (!item.expiryDate) return true;
           const expiry = new Date(item.expiryDate);
           expiry.setHours(0, 0, 0, 0);
-          return expiry >= today; // 下架：過期不顯示
+          return expiry >= today; // 已過期
         });
 
         data.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -235,8 +248,6 @@
         } else {
           data.forEach(item => {
             item.type = type; 
-            
-            // --- 這裡修改了：加入顯示 author (列表) ---
             html += `
               <div class="news-item" onclick='openModal(${JSON.stringify(item)})'>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -256,19 +267,19 @@
       }
     }
 
+    // 執行載入公告 (只載入 Ant 和 Bee)
     fetchNews("Ant", "ant-news-list", "ant");
     fetchNews("Bee", "bee-news-list", "bee");
 
-    // --- 懸浮視窗邏輯 ---
+    // ==========================================
+    // 4. 公告懸浮視窗邏輯 (Modal) - 維持原本邏輯
+    // ==========================================
     function openModal(item) {
       document.getElementById("m-title").innerText = item.title;
-      
-      // --- 這裡修改了：加入顯示 author (彈窗) ---
       const authorText = item.author ? `&nbsp;&nbsp;<span style="font-size:0.9em; color:#5ca08e;">(發布者：${item.author})</span>` : "";
       document.getElementById("m-date").innerHTML = "發布日期：" + item.date + authorText;
       
       let bodyHtml = "";
-
       if(item.contentA) {
         bodyHtml += `
           <div class="section-block">
@@ -312,24 +323,82 @@
     function closeModal() { document.getElementById("news-modal").style.display = "none"; }
     document.getElementById("news-modal").addEventListener("click", function(e) { if(e.target === this) closeModal(); });
 
-    // --- 載入表單 ---
-    const SHEET_URL = "https://opensheet.elk.sh/13v4T864SSZGSoNiIPGOY12mfzT2q5sbvDrarusC_zLE/%E8%9C%82%E8%9F%BB";
+    // ==========================================
+    // 5. 🟢 新版：載入表單 (只抓取「蜂蟻」分頁)
+    // ==========================================
     async function loadForms() {
+      const container = document.getElementById("form-list");
+      container.innerHTML = "<div style='text-align: center; color: #666; padding: 20px;'>載入表單中...</div>";
+
+      // 設定目標：只抓 "蜂蟻" 分頁
+      const targetSheetName = "蜂蟻";
+      const url = `${MY_PROXY_URL}?targetId=${FORM_DB_ID}&sheetName=${encodeURIComponent(targetSheetName)}`;
+
       try {
-        const res = await fetch(SHEET_URL);
+        const res = await fetch(url);
         const data = await res.json();
-        const container = document.getElementById("form-list");
+        
+        if (data.error) {
+           throw new Error(data.error);
+        }
+
+        // --- 日期過濾邏輯 ---
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const validData = data.filter(item => {
+          // 排除沒標題或沒連結的資料
+          if (!item.title || !item.form_url) return false;
+
+          // A. 檢查上架日期 (Date)
+          if (item.date) {
+            const startDate = new Date(item.date);
+            startDate.setHours(0, 0, 0, 0);
+            if (startDate > today) return false; // 時間未到，隱藏
+          }
+          
+          // B. 檢查下架日期 (ExpiryDate)
+          if (item.expiryDate) {
+            const endDate = new Date(item.expiryDate);
+            endDate.setHours(0, 0, 0, 0);
+            if (endDate < today) return false; // 已過期，隱藏
+          }
+          return true;
+        });
+
+        // 清空容器
         container.innerHTML = "";
-        if (data.length === 0) { container.innerHTML = "<div style='text-align:center; padding:20px;'>目前沒有開放的表單</div>"; return; }
-        data.sort((a, b) => a.month.localeCompare(b.month));
-        data.forEach(item => {
+        
+        if (validData.length === 0) { 
+          container.innerHTML = "<div style='text-align:center; padding:20px; color:#888;'>目前沒有開放的表單</div>"; 
+          return; 
+        }
+
+        // 排序：依月份 (month) 字串排序 (Ascending)
+        validData.sort((a, b) => (a.month || "").localeCompare(b.month || ""));
+
+        // 渲染畫面
+        validData.forEach(item => {
           const div = document.createElement("div");
           div.className = "form-box";
-          div.innerHTML = `<div style="display: flex; flex-direction: column;"><div class="month">${item.month}</div><div class="title">${item.title}</div></div><a class="btn" href="${item.form_url}" target="_blank">填寫</a>`;
+          
+          div.innerHTML = `
+            <div style="display: flex; flex-direction: column;">
+              <div class="month">${item.month}</div>
+              <div class="title">${item.title}</div>
+            </div>
+            <a class="btn" href="${item.form_url}" target="_blank">填寫</a>
+          `;
           container.appendChild(div);
         });
-      } catch (error) { console.error("無法載入表單:", error); container.innerHTML = "<div style='text-align:center; color:red;'>無法載入表單</div>"; }
+
+      } catch (error) { 
+        console.error("無法載入表單:", error); 
+        container.innerHTML = "<div style='text-align:center; color:red;'>無法載入表單資料，請稍後再試。</div>"; 
+      }
     }
+    
+    // 執行載入表單
     loadForms();
   </script>
 </body>
