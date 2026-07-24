@@ -3,107 +3,135 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🐝 南二團 各小隊出席狀況 🐜</title>
+  <title>🐝 荒野南二團 蜂蟻出席狀況查詢 🐜</title>
   <style>
     body {
-      font-family: "Segoe UI", sans-serif;
-      background: linear-gradient(to bottom right, #f9f9f9, #e6f7ff);
-      color: #333;
-      padding: 40px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%);
+      color: #2c3e50;
+      padding: 30px 15px;
       margin: 0;
       text-align: center;
+      min-height: 100vh;
     }
     h1 {
       font-size: 1.8em;
-      margin-bottom: 30px;
-      color: #3c6478;
+      margin-bottom: 25px;
+      color: #2c3e50;
+      font-weight: 700;
     }
     .card {
-      background-color: white;
-      max-width: 500px;
-      margin: 0 auto 20px;
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      background-color: #ffffff;
+      max-width: 520px;
+      margin: 0 auto 25px;
+      padding: 25px 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
       text-align: left;
     }
     .card label {
       display: block;
-      margin-bottom: 15px;
-      font-weight: bold;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #4a5568;
     }
     .card select {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       margin-top: 5px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 10px;
       font-size: 1em;
+      outline: none;
+      transition: border-color 0.2s;
+      background-color: #fff;
+    }
+    .card select:focus {
+      border-color: #3182ce;
     }
     .card button {
       display: block;
       width: 100%;
-      padding: 10px 0;
-      margin-top: 10px;
-      font-size: 1em;
+      padding: 12px 0;
+      margin-top: 15px;
+      font-size: 1.05em;
+      font-weight: 600;
       color: white;
-      background-color: #47a7f5;
+      background-color: #3182ce;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
+      transition: background-color 0.2s;
     }
     .card button:hover {
-      background-color: #358ac9;
+      background-color: #2b6cb0;
     }
     ul#results { list-style: none; padding: 0; margin: 0; }
     ul#results li {
-      padding: 8px;
-      margin: 6px auto;
-      max-width: 500px;
-      border-radius: 8px;
-      background-color: #f1f8ff;
-      border-left: 6px solid #47a7f5;
+      padding: 10px 14px;
+      margin: 8px auto;
+      max-width: 520px;
+      border-radius: 10px;
+      background-color: #ffffff;
+      border-left: 5px solid #cbd5e0;
       text-align: left;
       font-size: 1em;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.03);
     }
-    .status-present { color: green; font-weight: bold; }
-    .status-absent  { color: red; font-weight: bold; }
-    .status-unfilled { color: gray; font-style: italic; }
+    .event-header {
+      background: #ebf8ff !important;
+      border-left-color: #3182ce !important;
+      color: #2b6cb0;
+      font-size: 1.1em;
+      margin-top: 20px !important;
+    }
+    .team-header {
+      background: #f7fafc !important;
+      border-left-color: #a0aec0 !important;
+      color: #4a5568;
+    }
+    .status-present { color: #38a169; font-weight: bold; }
+    .status-absent  { color: #e53e3e; font-weight: bold; }
+    .status-unfilled { color: #a0aec0; font-style: italic; }
   </style>
 </head>
 <body>
   <h1>
     <a href="https://sowtnn02.github.io/home/index" style="text-decoration: none; color: inherit;">
-      🐝 荒野保護協會親子團南二團 各分團出席總覽 🐜
+      🐝 荒野保護協會親子團南二團 蜂蟻出席狀況 🐜
     </a>
   </h1>
   <div class="card">
-    <label for="groupSelect">團別</label>
+    <label for="groupSelect">選擇團別</label>
     <select id="groupSelect">
       <option value="">--請選擇團別--</option>
-      <option value="小蟻團">小蟻團</option>
-      <option value="炫蜂團">炫蜂團</option>
+      <option value="小蟻團">🐜 小蟻團</option>
+      <option value="炫蜂團">🐝 炫蜂團</option>
     </select>
-    <button id="searchBtn">搜尋</button>
+    <button id="searchBtn">開始搜尋</button>
   </div>
   <ul id="results"></ul>
 
   <script src="https://sowtnn02.github.io/home/team-data.js"></script>
 
   <script>
-    // 🔴 GAS 代理網址與主資料庫 ID
-    const MY_PROXY_URL = "https://script.google.com/macros/s/AKfycbxmzTs-dGe8rlGjeaUJH44bravhTNccqFsfImSz_wV-bSniF-E1aOqZ6nyShvyVYAtFCQ/exec";
+    // 🔴 請把下方的網址替換成剛才顯示 {"error":"Missing targetId"} 的那串 GAS 網址
+    const MY_PROXY_URL = "替換成你剛剛複製的新GAS網址";
     const MASTER_DB_ID = "1rsQZORmQldGeco9YRNUn9jaO10ogvXpsVSqjk4Z8Ur0"; 
 
-    const groupMap = { '小蟻團':'ant','炫蜂團':'bee','奔鹿團':'deer','翔鷹團':'eagle' };
-    const sheetNameMap = { "小蟻團": '蜂蟻', "炫蜂團": '蜂蟻', "奔鹿團": '鹿', "翔鷹團": '鷹' };
+    const groupMap = { '小蟻團':'ant','炫蜂團':'bee' };
+    const sheetNameMap = { "小蟻團": '蜂蟻', "炫蜂團": '蜂蟻' };
+
+    function extractSpreadsheetId(url) {
+      if (!url) return "";
+      const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      return match ? match[1] : "";
+    }
 
     function toMyProxyUrl(originalUrl) {
-      if (!originalUrl) return "";
-      const match = originalUrl.match(/\/d\/(.*?)(\/|$)/);
-      const targetId = match ? match[1] : "";
+      const targetId = extractSpreadsheetId(originalUrl);
       if (!targetId) return "";
-      return `${MY_PROXY_URL}?targetId=${targetId}&sheetName=${encodeURIComponent("表單回應 1")}`;
+      return `${MY_PROXY_URL}?targetId=${targetId}&sheetName=${encodeURIComponent("表單回覆 1")}`;
     }
 
     async function loadSheetsFromSheet(sheetName) {
@@ -139,7 +167,6 @@
       }
     }
 
-    // 🟢 自動清理名字中的數字編號 (例如 "37 彩虹龍" -> "彩虹龍")
     function cleanName(rawStr) {
       if (!rawStr) return '';
       return rawStr.replace(/^[0-9\s]+/, '').trim();
@@ -160,10 +187,15 @@
       const grp = groupSelect.value.trim();
       if (!grp) return alert('請選擇團別');
 
+      if (!MY_PROXY_URL || MY_PROXY_URL.includes("替換成你剛剛複製的新GAS網址")) {
+        alert("⚠️ 尚未設定新 GAS 網址！請先於代碼中替換 MY_PROXY_URL。");
+        return;
+      }
+
       const key = groupMap[grp];
       const masterSheetName = sheetNameMap[grp];
 
-      results.innerHTML = '<li style="text-align:center; color:#666;">⏳ 查詢中，請稍候...</li>';
+      results.innerHTML = '<li style="text-align:center; color:#718096; background:#fff;">⏳ 正在連線讀取出席資料，請稍候...</li>';
 
       const allSubGroups = Object.keys(teamData[key]);
       const sheets = await loadSheetsFromSheet(masterSheetName);
@@ -179,8 +211,8 @@
         if (!sheet.url || sheet.url.includes("targetId=&")) continue;
 
         results.innerHTML += `
-          <li style="background:#e0f0ff; padding:10px; border-radius:8px; font-weight:bold; color:#2a5d9f; margin-top:20px">
-            ${sheet.name}｜${grp}出席狀況：
+          <li class="event-header">
+            📅 <strong>${sheet.name}</strong> ｜ ${grp} 出席狀況
           </li>`;
 
         let data;
@@ -189,23 +221,20 @@
           data = await resp.json();
           if (data.error) throw new Error(data.error);
         } catch {
-          results.innerHTML += `<li>⚠️ 查詢失敗 (連線逾時或權限錯誤)</li>`;
+          results.innerHTML += `<li style="border-left-color:#e53e3e;">⚠️ 查詢失敗（請檢查 GAS 部署權限設定）</li>`;
           continue;
         }
 
-        // 🟢 將表單回覆轉成對照 Map
         const filledStatusMap = {};
 
         data.forEach(row => {
           const vals = Object.values(row);
           
-          // 炫蜂團 (蜂): 小蜂(1)在 H(7), I(8) | 小蜂(2)在 J(9), K(10)
-          // 小蟻團 (蟻): 小蟻(1)在 L(11), M(12) | 小蟻(2)在 N(13), O(14)
           let colPairs = [];
           if (grp === '炫蜂團') {
-            colPairs = [[7, 8], [9, 10]];
+            colPairs = [[7, 8], [9, 10]]; // H,I 與 J,K 欄
           } else if (grp === '小蟻團') {
-            colPairs = [[11, 12], [13, 14]];
+            colPairs = [[11, 12], [13, 14]]; // L,M 與 N,O 欄
           }
 
           colPairs.forEach(([childCol, statusCol]) => {
@@ -219,13 +248,13 @@
           });
         });
 
-        // 🟢 渲染各小隊成員狀態
         for (const sub of allSubGroups) {
           const entries = teamData[key][sub];
-          results.innerHTML += `<li style="background:#f9fbff; font-weight:bold; margin-top:10px;">🟢 ${sub}</li>`;
+          results.innerHTML += `<li class="team-header">🟢 <strong>${sub}</strong></li>`;
 
           entries.forEach(e => {
             const childName = e.child.trim();
+            let line = "";
             
             if (childName in filledStatusMap) {
               const st = filledStatusMap[childName];
