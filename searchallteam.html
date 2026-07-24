@@ -149,7 +149,6 @@
     }
 
     async function loadSheetsFromSheet(sheetName) {
-      // 🟢 加上破快取參數 &nocache
       const url = `${MY_PROXY_URL}?targetId=${MASTER_DB_ID}&sheetName=${encodeURIComponent(sheetName)}&nocache=${Date.now()}`;
       try {
         const res = await fetch(url);
@@ -160,7 +159,6 @@
         today.setHours(0, 0, 0, 0);
 
         const validData = raw.filter(item => {
-           // 支援 col_ 或物件 key
            const dVal = item.date || item.col_2;
            const expVal = item.expiryDate || item.col_3;
 
@@ -239,7 +237,6 @@
 
         let data;
         try {
-          // 🟢 加上破快取網址 &nocache=
           const resp = await fetch(sheet.url + '&nocache=' + Date.now(), { cache:'no-store' });
           data = await resp.json();
           if (data.error) throw new Error(data.error);
@@ -248,7 +245,7 @@
           continue;
         }
 
-        // 時間戳記由舊到新排序
+        // 時間戳記排序
         data.sort((a, b) => {
           const valA = a.col_0 || Object.values(a)[0] || 0;
           const valB = b.col_0 || Object.values(b)[0] || 0;
@@ -259,14 +256,10 @@
         const memberStatusMap = {};
 
         data.forEach(row => {
-          // C 欄 (col_2)：家庭編號
           const familyRaw = row.col_2 || Object.values(row)[2] || '';
           const familyNum = extractNum(familyRaw);
           if (familyNum) { familySubmittedMap[familyNum] = true; }
 
-          // 對應欄位：
-          // 炫蜂團：H,I 欄 (col_7, col_8) 與 J,K 欄 (col_9, col_10)
-          // 小蟻團：L,M 欄 (col_11, col_12) 與 N,O 欄 (col_13, col_14)
           let colPairs = [];
           if (grp === '炫蜂團') colPairs = [[7, 8], [9, 10]];
           if (grp === '小蟻團') colPairs = [[11, 12], [13, 14]];
@@ -280,26 +273,25 @@
 
             if (!rawChild) return;
 
-            // 1. 孩子欄位選「無此成員 / 不適用」
             if (rawChild.includes('無此成員') || rawChild.includes('不適用')) {
               return;
             }
 
             if (!childName) return;
 
-            // 2. C欄編號與孩子編號不符
+            // 1. C欄編號與孩子編號不符
             if (familyNum && childNum && familyNum !== childNum) {
               memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤' };
               return;
             }
 
-            // 3. 姓名有填但出席狀況選無此成員/不適用
+            // 2. 姓名有填但出席狀況選無此成員/不適用
             if (rawStatus.includes('無此成員') || rawStatus.includes('不適用')) {
               memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤' };
               return;
             }
 
-            // 🟢 4. 嚴格比對：優先判定請假/不出席，再判定出席
+            // 3. 嚴格比對：請假 / 出席
             if (rawStatus.includes('請假') || rawStatus.includes('不出席')) {
               memberStatusMap[childName] = { type: 'ABSENT', msg: '❌ 請假' };
             } else if (rawStatus.includes('出席')) {
@@ -308,7 +300,7 @@
           });
         });
 
-        // 印出名單
+        // 印出名單（🟢 這裡改為精準 100% 全字匹配，杜絕「魚」跟「美人魚」混淆的問題）
         for (const sub of allSubGroups) {
           const entries = subGroupObj[sub] || [];
           results.innerHTML += `<li class="team-header">🟢 <strong>${sub}</strong></li>`;
@@ -319,7 +311,8 @@
             const familyNum = extractNum(e.family || '');
             let line = "";
 
-            let matchedKey = Object.keys(memberStatusMap).find(k => k === cleanChild || k.includes(cleanChild) || cleanChild.includes(k));
+            // 🟢 精準全匹配
+            let matchedKey = Object.keys(memberStatusMap).find(k => k === cleanChild);
 
             if (matchedKey && memberStatusMap[matchedKey].type) {
               const st = memberStatusMap[matchedKey];
