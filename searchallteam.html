@@ -227,11 +227,13 @@
             const fam = (vals[1] || '').trim();
             
             entries.forEach(e => {
-              if (fam !== e.family.trim()) return;
+              // 🟢 強化比對：自動去除多餘空格，避免家庭名稱格式微小差異導致比對失敗
+              if (fam.replace(/\s+/g, '') !== e.family.trim().replace(/\s+/g, '')) return;
+
               for (let i = 0; i < 3; i++) {
                 const child = (vals[2 + i*3] || '').trim();
                 const squad = (vals[3 + i*3] || '').trim();
-                const st = (vals[4 + i*3] || '出席').trim();
+                const st = (vals[4 + i*3] || '').trim();
                 
                 if (squad === sub || squad === grp) {
                   const k = `${e.family.trim()}|${e.child.trim()}`;
@@ -247,8 +249,14 @@
             const s = statusMap[k];
             let line;
             if (s.filled) {
-              const ok = s.status.includes('出席');
-              line = `${s.family} _ ${s.child}：<span class="${ok?'status-present':'status-absent'}">${ok?'✅ 出席':'❌ 請假'}</span>`;
+              // 🟢 升級狀態判斷：支援「填單錯誤」、「出席」與「請假」
+              if (s.status.includes('填單錯誤')) {
+                line = `${s.family} _ ${s.child}：<span style="color:#e67e22; font-weight:bold;">⚠️ 填單錯誤</span>`;
+              } else if (s.status.includes('出席')) {
+                line = `${s.family} _ ${s.child}：<span class="status-present">✅ 出席</span>`;
+              } else {
+                line = `${s.family} _ ${s.child}：<span class="status-absent">❌ 請假</span>`;
+              }
             } else if (s.submitted) {
               line = `${s.family} _ ${s.child}：<span class="status-unfilled">⚠️ 有填表，但未填此小隊</span>`;
             } else {
