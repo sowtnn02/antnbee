@@ -115,7 +115,7 @@
   <script src="https://sowtnn02.github.io/home/team-data.js"></script>
 
   <script>
-    // 🔴 請把下方的網址替換成剛才顯示 {"error":"Missing targetId"} 的那串 GAS 網址
+    // 🟢 專屬新 GAS 網址已完成設定
     const MY_PROXY_URL = "https://script.google.com/macros/s/AKfycbwrJBnHnDOrNU--jaEV0FLI1x2cHW7OSjIy_oRkGu9PU66rH0ZOTEx1udJ4m3XuPWdo/exec";
     const MASTER_DB_ID = "1rsQZORmQldGeco9YRNUn9jaO10ogvXpsVSqjk4Z8Ur0"; 
 
@@ -187,7 +187,8 @@
       const grp = groupSelect.value.trim();
       if (!grp) return alert('請選擇團別');
 
-      if (!MY_PROXY_URL || MY_PROXY_URL.includes("https://script.google.com/macros/s/AKfycbwrJBnHnDOrNU--jaEV0FLI1x2cHW7OSjIy_oRkGu9PU66rH0ZOTEx1udJ4m3XuPWdo/exec")) {
+      // 🟢 修正防呆邏輯
+      if (!MY_PROXY_URL || MY_PROXY_URL.includes("替換成你剛剛複製的新GAS網址")) {
         alert("⚠️ 尚未設定新 GAS 網址！請先於代碼中替換 MY_PROXY_URL。");
         return;
       }
