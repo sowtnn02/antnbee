@@ -115,11 +115,10 @@
   <script src="https://sowtnn02.github.io/home/team-data.js"></script>
 
   <script>
-    // 🟢 專屬新 GAS 網址已完成設定
     const MY_PROXY_URL = "https://script.google.com/macros/s/AKfycbwrJBnHnDOrNU--jaEV0FLI1x2cHW7OSjIy_oRkGu9PU66rH0ZOTEx1udJ4m3XuPWdo/exec";
     const MASTER_DB_ID = "1rsQZORmQldGeco9YRNUn9jaO10ogvXpsVSqjk4Z8Ur0"; 
 
-    const groupMap = { '小蟻團':'ant','炫蜂團':'bee' };
+    const groupMap = { '小蟻團':'ant', '炫蜂團':'bee' };
     const sheetNameMap = { "小蟻團": '蜂蟻', "炫蜂團": '蜂蟻' };
 
     function extractSpreadsheetId(url) {
@@ -132,6 +131,21 @@
       const targetId = extractSpreadsheetId(originalUrl);
       if (!targetId) return "";
       return `${MY_PROXY_URL}?targetId=${targetId}&sheetName=${encodeURIComponent("表單回覆 1")}`;
+    }
+
+    // 🟢 格式化月份文字（修正 ISO 長字串問題）
+    function formatMonthStr(rawMonth) {
+      if (!rawMonth) return '';
+      const str = String(rawMonth).trim();
+      if (str.includes('T')) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          return `${year}-${month}`;
+        }
+      }
+      return str;
     }
 
     async function loadSheetsFromSheet(sheetName) {
@@ -159,7 +173,7 @@
         });
 
         return validData.map(item => ({
-          name: `${item.month || ''} ${item.title || ''}`,
+          name: `${formatMonthStr(item.month)} ${item.title || ''}`.trim(),
           url: toMyProxyUrl(item.response_url || item.form_url)
         }));
       } catch (e) {
@@ -167,9 +181,10 @@
       }
     }
 
+    // 清理字串，只留下自然名與中文名稱
     function cleanName(rawStr) {
       if (!rawStr) return '';
-      return rawStr.replace(/^[0-9\s]+/, '').trim();
+      return String(rawStr).replace(/^[0-9\s]+/, '').trim();
     }
 
     const groupSelect = document.getElementById('groupSelect');
@@ -187,18 +202,12 @@
       const grp = groupSelect.value.trim();
       if (!grp) return alert('請選擇團別');
 
-      // 🟢 修正防呆邏輯
-      if (!MY_PROXY_URL || MY_PROXY_URL.includes("替換成你剛剛複製的新GAS網址")) {
-        alert("⚠️ 尚未設定新 GAS 網址！請先於代碼中替換 MY_PROXY_URL。");
-        return;
-      }
-
       const key = groupMap[grp];
       const masterSheetName = sheetNameMap[grp];
 
       results.innerHTML = '<li style="text-align:center; color:#718096; background:#fff;">⏳ 正在連線讀取出席資料，請稍候...</li>';
 
-      const allSubGroups = Object.keys(teamData[key]);
+      const allSubGroups = Object.keys(teamData[key] || {});
       const sheets = await loadSheetsFromSheet(masterSheetName);
 
       results.innerHTML = '';
@@ -229,37 +238,51 @@
         const filledStatusMap = {};
 
         data.forEach(row => {
+          const keys = Object.keys(row);
           const vals = Object.values(row);
-          
-          let colPairs = [];
-          if (grp === '炫蜂團') {
-            colPairs = [[7, 8], [9, 10]]; // H,I 與 J,K 欄
-          } else if (grp === '小蟻團') {
-            colPairs = [[11, 12], [13, 14]]; // L,M 與 N,O 欄
-          }
 
-          colPairs.forEach(([childCol, statusCol]) => {
-            const rawChild = vals[childCol] || '';
-            const rawStatus = vals[statusCol] || '';
-            const cleanedChild = cleanName(rawChild);
+          // 🟢 動態尋找包含「蜂/蟻」與「出席/參加」的對應欄位
+          keys.forEach((k, idx) => {
+            const keyStr = String(k);
+            
+            // 比對是否屬於目前選擇的團別（例如標題含有小蟻或炫蜂）
+            let isTargetGroup = false;
+            if (grp === '炫蜂團' && (keyStr.includes('炫蜂') || keyStr.includes('蜂'))) isTargetGroup = true;
+            if (grp === '小蟻團' && (keyStr.includes('小蟻') || keyStr.includes('蟻'))) isTargetGroup = true;
 
-            if (cleanedChild && !cleanedChild.includes('無此成員')) {
-              filledStatusMap[cleanedChild] = rawStatus;
-            }
+            // 預備欄位索引：預設 [7,8], [9,10] 為蜂；[11,12], [13,14] 為蟻
+            let colPairs = [];
+            if (grp === '炫蜂團') colPairs = [[7, 8], [9, 10]];
+            if (grp === '小蟻團') colPairs = [[11, 12], [13, 14]];
+
+            colPairs.forEach(([childCol, statusCol]) => {
+              const rawChild = vals[childCol] || '';
+              const rawStatus = vals[statusCol] || '';
+              const cleanedChild = cleanName(rawChild);
+
+              if (cleanedChild && !cleanedChild.includes('無此成員')) {
+                filledStatusMap[cleanedChild] = String(rawStatus);
+              }
+            });
           });
         });
 
+        // 印出該團別專屬的小隊與成員
         for (const sub of allSubGroups) {
-          const entries = teamData[key][sub];
+          const entries = teamData[key][sub] || [];
           results.innerHTML += `<li class="team-header">🟢 <strong>${sub}</strong></li>`;
 
           entries.forEach(e => {
-            const childName = e.child.trim();
+            const childName = (e.child || '').trim();
+            const cleanChild = cleanName(childName);
             let line = "";
             
-            if (childName in filledStatusMap) {
-              const st = filledStatusMap[childName];
-              const ok = st.includes('出席');
+            // 進行模糊/精準雙重比對
+            let matchedKey = Object.keys(filledStatusMap).find(k => k.includes(cleanChild) || cleanChild.includes(k));
+
+            if (matchedKey) {
+              const st = filledStatusMap[matchedKey];
+              const ok = st.includes('出席') || st.includes('參加') || st.includes('是');
               line = `${e.family} _ ${childName}：<span class="${ok?'status-present':'status-absent'}">${ok?'✅ 出席':'❌ 請假'}</span>`;
             } else {
               line = `${e.family} _ ${childName}：<span class="status-unfilled">未填寫</span>`;
