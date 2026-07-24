@@ -93,7 +93,7 @@
     .status-present { color: #38a169; font-weight: bold; }
     .status-absent  { color: #e53e3e; font-weight: bold; }
     .status-unfilled { color: #a0aec0; font-style: italic; }
-    .status-error   { color: #dd6b20; font-weight: bold; } /* ⚠️ 填單錯誤黃橘色標籤 */
+    .status-error   { color: #dd6b20; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -134,7 +134,6 @@
       return `${MY_PROXY_URL}?targetId=${targetId}&sheetName=${encodeURIComponent("表單回覆 1")}`;
     }
 
-    // 🟢 格式化月份/日期文字，去除 ISO 長字串
     function formatMonthStr(rawMonth) {
       if (!rawMonth) return '';
       const str = String(rawMonth).trim();
@@ -182,14 +181,12 @@
       }
     }
 
-    // 🟢 提取數字編號 (例如："37 彩虹龍" -> "37")
     function extractNum(rawStr) {
       if (!rawStr) return '';
       const match = String(rawStr).match(/^(\d+)/);
       return match ? match[1] : '';
     }
 
-    // 🟢 清理純自然名 (例如："37 彩虹龍" -> "彩虹龍")
     function cleanName(rawStr) {
       if (!rawStr) return '';
       return String(rawStr).replace(/^[0-9\s]+/, '').trim();
@@ -215,8 +212,9 @@
 
       results.innerHTML = '<li style="text-align:center; color:#718096; background:#fff;">⏳ 正在連線讀取出席資料，請稍候...</li>';
 
-      // 嚴格依照 team-data.js 裡的小隊 Key 順序
-      const allSubGroups = Object.keys(teamData[key] || {});
+      const subGroupObj = teamData[key] || {};
+      const allSubGroups = Object.keys(subGroupObj);
+
       const sheets = await loadSheetsFromSheet(masterSheetName);
 
       results.innerHTML = '';
@@ -244,26 +242,29 @@
           continue;
         }
 
-        // 🟢 步驟一：依 A 欄（時間戳記）從舊到新排序，確保後面最新的資料能覆蓋前面舊資料
+        // A 欄時間戳記排序（最新填寫覆蓋舊的）
         data.sort((a, b) => {
           const tA = new Date(Object.values(a)[0] || 0).getTime();
           const tB = new Date(Object.values(b)[0] || 0).getTime();
           return tA - tB;
         });
 
-        // 記錄最終判定的狀態 Map: childName -> statusObj { type: 'PRESENT'|'ABSENT'|'ERROR', msg: '' }
+        // 記錄家庭編號是否有填寫記錄: familyNum -> true
+        const familySubmittedMap = {};
         const memberStatusMap = {};
 
-        // 🟢 步驟二：從舊到新讀取表單列
         data.forEach(row => {
           const vals = Object.values(row);
 
-          // C 欄：家庭/家長編號 (Index 2)
+          // C 欄：家庭編號 (Index 2)
           const familyNum = extractNum(vals[2]);
+          if (familyNum) {
+            familySubmittedMap[familyNum] = true;
+          }
 
-          // 對應欄位設定：
-          // 炫蜂團：H,I 欄 (index 7,8) 與 J,K 欄 (index 9,10)
-          // 小蟻團：L,M 欄 (index 11,12) 與 N,O 欄 (index 13,14)
+          // 對應欄位：
+          // 炫蜂團：H,I 欄 (index 7, 8) 與 J,K 欄 (index 9, 10)
+          // 小蟻團：L,M 欄 (index 11, 12) 與 N,O 欄 (index 13, 14)
           let colPairs = [];
           if (grp === '炫蜂團') colPairs = [[7, 8], [9, 10]];
           if (grp === '小蟻團') colPairs = [[11, 12], [13, 14]];
@@ -275,22 +276,33 @@
             const childNum = extractNum(rawChild);
             const childName = cleanName(rawChild);
 
-            if (!childName) return; // 空白直接跳過
+            if (!rawChild) return; // 完全沒填跳過
 
-            // 🟢 邏輯檢核 1：C欄編號 與 孩子欄位編號 不相符 -> 填單錯誤
+            // 🟢 新增驗證 2：孩子欄位填了「無此成員 / 不適用」
+            if (rawChild.includes('無此成員') || rawChild.includes('不適用')) {
+              // 如果這筆填單帶有家庭編號，我們記錄該家庭這欄選了無此成員
+              if (familyNum) {
+                memberStatusMap[`INVALID_FAMILY_${familyNum}_COL_${childColIdx}`] = true;
+              }
+              return;
+            }
+
+            if (!childName) return;
+
+            // 🟢 驗證 1：C欄編號與孩子編號不符
             if (familyNum && childNum && familyNum !== childNum) {
-              memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤（編號不符）' };
+              memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤' };
               return;
             }
 
-            // 🟢 邏輯檢核 2：有正確孩子名字，但出席欄選擇「無此成員 / 不適用」 -> 填單錯誤
+            // 🟢 驗證 3：有名字但出席欄選無此成員/不適用
             if (rawStatus.includes('無此成員') || rawStatus.includes('不適用')) {
-              memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤（選項矛盾）' };
+              memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤' };
               return;
             }
 
-            // 🟢 邏輯檢核 3：合法出席/請假判定
-            if (rawStatus.includes('出席') || rawStatus.includes('參加')) {
+            // 🟢 正常出席 / 請假
+            if (rawStatus.includes('出席')) {
               memberStatusMap[childName] = { type: 'PRESENT', msg: '✅ 出席' };
             } else if (rawStatus.includes('請假') || rawStatus.includes('不出席')) {
               memberStatusMap[childName] = { type: 'ABSENT', msg: '❌ 請假' };
@@ -298,20 +310,20 @@
           });
         });
 
-        // 🟢 步驟三：完全依照 team-data.js 裡的小隊與成員順序輸出畫面
+        // 輸出卡片
         for (const sub of allSubGroups) {
-          const entries = teamData[key][sub] || [];
+          const entries = subGroupObj[sub] || [];
           results.innerHTML += `<li class="team-header">🟢 <strong>${sub}</strong></li>`;
 
           entries.forEach(e => {
             const childName = (e.child || '').trim();
             const cleanChild = cleanName(childName);
+            const familyNum = extractNum(e.family || '');
             let line = "";
 
-            // 名稱雙重模糊匹配（如：彩虹龍）
-            let matchedKey = Object.keys(memberStatusMap).find(k => k.includes(cleanChild) || cleanChild.includes(k));
+            let matchedKey = Object.keys(memberStatusMap).find(k => k === cleanChild || k.includes(cleanChild) || cleanChild.includes(k));
 
-            if (matchedKey) {
+            if (matchedKey && memberStatusMap[matchedKey].type) {
               const st = memberStatusMap[matchedKey];
               if (st.type === 'PRESENT') {
                 line = `${e.family} _ ${childName}：<span class="status-present">${st.msg}</span>`;
@@ -321,8 +333,12 @@
                 line = `${e.family} _ ${childName}：<span class="status-error">${st.msg}</span>`;
               }
             } else {
-              // 🟢 邏輯檢核 4：未填寫
-              line = `${e.family} _ ${childName}：<span class="status-unfilled">未填寫</span>`;
+              // 🟢 比對防呆：家長有提交表單，但該孩子欄位卻選了「無此成員 / 不適用」
+              if (familyNum && familySubmittedMap[familyNum]) {
+                line = `${e.family} _ ${childName}：<span class="status-error">⚠️ 填單錯誤</span>`;
+              } else {
+                line = `${e.family} _ ${childName}：<span class="status-unfilled">未填寫</span>`;
+              }
             }
             results.innerHTML += `<li>${line}</li>`;
           });
