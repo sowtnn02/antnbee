@@ -149,7 +149,8 @@
     }
 
     async function loadSheetsFromSheet(sheetName) {
-      const url = `${MY_PROXY_URL}?targetId=${MASTER_DB_ID}&sheetName=${encodeURIComponent(sheetName)}`;
+      // 🟢 加上破快取參數 &nocache
+      const url = `${MY_PROXY_URL}?targetId=${MASTER_DB_ID}&sheetName=${encodeURIComponent(sheetName)}&nocache=${Date.now()}`;
       try {
         const res = await fetch(url);
         const raw = await res.json();
@@ -159,13 +160,17 @@
         today.setHours(0, 0, 0, 0);
 
         const validData = raw.filter(item => {
-           if (item.date) {
-             const startDate = new Date(item.date);
+           // 支援 col_ 或物件 key
+           const dVal = item.date || item.col_2;
+           const expVal = item.expiryDate || item.col_3;
+
+           if (dVal) {
+             const startDate = new Date(dVal);
              startDate.setHours(0, 0, 0, 0);
              if (startDate > today) return false; 
            }
-           if (item.expiryDate) {
-             const endDate = new Date(item.expiryDate);
+           if (expVal) {
+             const endDate = new Date(expVal);
              endDate.setHours(0, 0, 0, 0);
              if (endDate < today) return false; 
            }
@@ -173,8 +178,8 @@
         });
 
         return validData.map(item => ({
-          name: `${formatMonthStr(item.month)} ${item.title || ''}`.trim(),
-          url: toMyProxyUrl(item.response_url || item.form_url)
+          name: `${formatMonthStr(item.month || item.col_1)} ${item.title || item.col_0 || ''}`.trim(),
+          url: toMyProxyUrl(item.response_url || item.form_url || item.col_4)
         }));
       } catch (e) {
         return [];
@@ -234,7 +239,8 @@
 
         let data;
         try {
-          const resp = await fetch(sheet.url + '&t=' + Date.now(), { cache:'no-store' });
+          // 🟢 加上破快取網址 &nocache=
+          const resp = await fetch(sheet.url + '&nocache=' + Date.now(), { cache:'no-store' });
           data = await resp.json();
           if (data.error) throw new Error(data.error);
         } catch {
@@ -242,75 +248,67 @@
           continue;
         }
 
-        // A 欄時間戳記排序（最新填寫覆蓋舊的）
+        // 時間戳記由舊到新排序
         data.sort((a, b) => {
-          const tA = new Date(Object.values(a)[0] || 0).getTime();
-          const tB = new Date(Object.values(b)[0] || 0).getTime();
-          return tA - tB;
+          const valA = a.col_0 || Object.values(a)[0] || 0;
+          const valB = b.col_0 || Object.values(b)[0] || 0;
+          return new Date(valA).getTime() - new Date(valB).getTime();
         });
 
-        // 記錄家庭編號是否有填寫記錄: familyNum -> true
         const familySubmittedMap = {};
         const memberStatusMap = {};
 
         data.forEach(row => {
-          const vals = Object.values(row);
-
-          // C 欄：家庭編號 (Index 2)
-          const familyNum = extractNum(vals[2]);
-          if (familyNum) {
-            familySubmittedMap[familyNum] = true;
-          }
+          // C 欄 (col_2)：家庭編號
+          const familyRaw = row.col_2 || Object.values(row)[2] || '';
+          const familyNum = extractNum(familyRaw);
+          if (familyNum) { familySubmittedMap[familyNum] = true; }
 
           // 對應欄位：
-          // 炫蜂團：H,I 欄 (index 7, 8) 與 J,K 欄 (index 9, 10)
-          // 小蟻團：L,M 欄 (index 11, 12) 與 N,O 欄 (index 13, 14)
+          // 炫蜂團：H,I 欄 (col_7, col_8) 與 J,K 欄 (col_9, col_10)
+          // 小蟻團：L,M 欄 (col_11, col_12) 與 N,O 欄 (col_13, col_14)
           let colPairs = [];
           if (grp === '炫蜂團') colPairs = [[7, 8], [9, 10]];
           if (grp === '小蟻團') colPairs = [[11, 12], [13, 14]];
 
-          colPairs.forEach(([childColIdx, statusColIdx]) => {
-            const rawChild = vals[childColIdx] || '';
-            const rawStatus = String(vals[statusColIdx] || '');
+          colPairs.forEach(([cIdx, sIdx]) => {
+            const rawChild = row[`col_${cIdx}`] || Object.values(row)[cIdx] || '';
+            const rawStatus = String(row[`col_${sIdx}`] || Object.values(row)[sIdx] || '');
 
             const childNum = extractNum(rawChild);
             const childName = cleanName(rawChild);
 
-            if (!rawChild) return; // 完全沒填跳過
+            if (!rawChild) return;
 
-            // 🟢 新增驗證 2：孩子欄位填了「無此成員 / 不適用」
+            // 1. 孩子欄位選「無此成員 / 不適用」
             if (rawChild.includes('無此成員') || rawChild.includes('不適用')) {
-              // 如果這筆填單帶有家庭編號，我們記錄該家庭這欄選了無此成員
-              if (familyNum) {
-                memberStatusMap[`INVALID_FAMILY_${familyNum}_COL_${childColIdx}`] = true;
-              }
               return;
             }
 
             if (!childName) return;
 
-            // 🟢 驗證 1：C欄編號與孩子編號不符
+            // 2. C欄編號與孩子編號不符
             if (familyNum && childNum && familyNum !== childNum) {
               memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤' };
               return;
             }
 
-            // 🟢 驗證 3：有名字但出席欄選無此成員/不適用
+            // 3. 姓名有填但出席狀況選無此成員/不適用
             if (rawStatus.includes('無此成員') || rawStatus.includes('不適用')) {
               memberStatusMap[childName] = { type: 'ERROR', msg: '⚠️ 填單錯誤' };
               return;
             }
 
-            // 🟢 正常出席 / 請假
-            if (rawStatus.includes('出席')) {
-              memberStatusMap[childName] = { type: 'PRESENT', msg: '✅ 出席' };
-            } else if (rawStatus.includes('請假') || rawStatus.includes('不出席')) {
+            // 🟢 4. 嚴格比對：優先判定請假/不出席，再判定出席
+            if (rawStatus.includes('請假') || rawStatus.includes('不出席')) {
               memberStatusMap[childName] = { type: 'ABSENT', msg: '❌ 請假' };
+            } else if (rawStatus.includes('出席')) {
+              memberStatusMap[childName] = { type: 'PRESENT', msg: '✅ 出席' };
             }
           });
         });
 
-        // 輸出卡片
+        // 印出名單
         for (const sub of allSubGroups) {
           const entries = subGroupObj[sub] || [];
           results.innerHTML += `<li class="team-header">🟢 <strong>${sub}</strong></li>`;
@@ -333,7 +331,6 @@
                 line = `${e.family} _ ${childName}：<span class="status-error">${st.msg}</span>`;
               }
             } else {
-              // 🟢 比對防呆：家長有提交表單，但該孩子欄位卻選了「無此成員 / 不適用」
               if (familyNum && familySubmittedMap[familyNum]) {
                 line = `${e.family} _ ${childName}：<span class="status-error">⚠️ 填單錯誤</span>`;
               } else {
