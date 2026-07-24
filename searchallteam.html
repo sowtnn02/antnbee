@@ -72,18 +72,18 @@
   </style>
 </head>
 <body>
-    <h1>
-    <a href="index.html" style="text-decoration: none; color: inherit;">
-      🐝 荒野保護協會親子團南二團 小隊出席狀況 🐜
+  <h1>
+    <a href="https://sowtnn02.github.io/home/index" style="text-decoration: none; color: inherit;">
+      🐝 荒野保護協會親子團南二團 各分團出席總覽 🐜
     </a>
-    </h1>
+  </h1>
   <div class="card">
     <label for="groupSelect">團別</label>
     <select id="groupSelect">
       <option value="">--請選擇團別--</option>
       <option value="小蟻團">小蟻團</option>
       <option value="炫蜂團">炫蜂團</option>
-      </select>
+    </select>
     <button id="searchBtn">搜尋</button>
   </div>
   <ul id="results"></ul>
@@ -91,22 +91,12 @@
   <script src="https://sowtnn02.github.io/home/team-data.js"></script>
 
   <script>
-    // 🔴 2. 設定你的 GAS 網址 (萬用查詢器)
+    // 🔴 GAS 代理網址與主資料庫 ID
     const MY_PROXY_URL = "https://script.google.com/macros/s/AKfycbxmzTs-dGe8rlGjeaUJH44bravhTNccqFsfImSz_wV-bSniF-E1aOqZ6nyShvyVYAtFCQ/exec";
-
-    // 🔴 3. 設定你的主資料庫 ID (已更新)
     const MASTER_DB_ID = "1rsQZORmQldGeco9YRNUn9jaO10ogvXpsVSqjk4Z8Ur0"; 
 
-    // ✅ 團別對應 key (對應 team-data.js 裡的 key)
     const groupMap = { '小蟻團':'ant','炫蜂團':'bee','奔鹿團':'deer','翔鷹團':'eagle' };
-
-    // ✅ 資料庫中的工作表名稱 (對應新表單的分頁)
-    const sheetNameMap = {
-      "小蟻團": '蜂蟻',
-      "炫蜂團": '蜂蟻',
-      "奔鹿團": '鹿',
-      "翔鷹團": '鷹'
-    };
+    const sheetNameMap = { "小蟻團": '蜂蟻', "炫蜂團": '蜂蟻', "奔鹿團": '鹿', "翔鷹團": '鷹' };
 
     function toMyProxyUrl(originalUrl) {
       if (!originalUrl) return "";
@@ -121,24 +111,17 @@
       try {
         const res = await fetch(url);
         const raw = await res.json();
-        if (raw.error) {
-           console.error("Master DB Error", raw);
-           alert("無法讀取主資料表");
-           return [];
-        }
+        if (raw.error) return [];
 
-        // --- 🟢 新增：日期過濾邏輯 ---
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const validData = raw.filter(item => {
-           // 1. 檢查上架日
            if (item.date) {
              const startDate = new Date(item.date);
              startDate.setHours(0, 0, 0, 0);
              if (startDate > today) return false; 
            }
-           // 2. 檢查下架日
            if (item.expiryDate) {
              const endDate = new Date(item.expiryDate);
              endDate.setHours(0, 0, 0, 0);
@@ -152,9 +135,14 @@
           url: toMyProxyUrl(item.response_url || item.form_url)
         }));
       } catch (e) {
-        console.error(e);
         return [];
       }
+    }
+
+    // 🟢 自動清理名字中的數字編號 (例如 "37 彩虹龍" -> "彩虹龍")
+    function cleanName(rawStr) {
+      if (!rawStr) return '';
+      return rawStr.replace(/^[0-9\s]+/, '').trim();
     }
 
     const groupSelect = document.getElementById('groupSelect');
@@ -165,7 +153,7 @@
       results.innerHTML = '';
       
       if (typeof teamData === 'undefined') {
-        alert("⚠️ 無法讀取名單資料，請檢查網路連線或 team-data.js 路徑。");
+        alert("⚠️ 無法讀取名單資料，請檢查 team-data.js。");
         return;
       }
 
@@ -174,8 +162,6 @@
 
       const key = groupMap[grp];
       const masterSheetName = sheetNameMap[grp];
-
-      if (!masterSheetName) return alert('查無對應資料表來源');
 
       results.innerHTML = '<li style="text-align:center; color:#666;">⏳ 查詢中，請稍候...</li>';
 
@@ -193,66 +179,60 @@
         if (!sheet.url || sheet.url.includes("targetId=&")) continue;
 
         results.innerHTML += `
-          <li style="
-            background:#e0f0ff;
-            padding:10px;
-            border-radius:8px;
-            font-weight:bold;
-            color:#2a5d9f;
-            margin-top:20px
-          ">
+          <li style="background:#e0f0ff; padding:10px; border-radius:8px; font-weight:bold; color:#2a5d9f; margin-top:20px">
             ${sheet.name}｜${grp}出席狀況：
           </li>`;
 
-        for (const sub of allSubGroups) {
-          const entries = teamData[key][sub];
-          const statusMap = {};
-          entries.forEach(e => {
-            const k = `${e.family.trim()}|${e.child.trim()}`;
-            statusMap[k] = { ...e, filled:false, submitted:false, status:'' };
-          });
+        let data;
+        try {
+          const resp = await fetch(sheet.url + '&t=' + Date.now(), { cache:'no-store' });
+          data = await resp.json();
+          if (data.error) throw new Error(data.error);
+        } catch {
+          results.innerHTML += `<li>⚠️ 查詢失敗 (連線逾時或權限錯誤)</li>`;
+          continue;
+        }
 
-          let data;
-          try {
-            const resp = await fetch(sheet.url + '&t=' + Date.now(), { cache:'no-store' });
-            data = await resp.json();
-            if (data.error) throw new Error(data.error);
-          } catch {
-            results.innerHTML += `<li>${sub}：⚠️ 查詢失敗 (連線逾時或權限錯誤)</li>`;
-            continue;
+        // 🟢 將表單回覆轉成對照 Map
+        const filledStatusMap = {};
+
+        data.forEach(row => {
+          const vals = Object.values(row);
+          
+          // 炫蜂團 (蜂): 小蜂(1)在 H(7), I(8) | 小蜂(2)在 J(9), K(10)
+          // 小蟻團 (蟻): 小蟻(1)在 L(11), M(12) | 小蟻(2)在 N(13), O(14)
+          let colPairs = [];
+          if (grp === '炫蜂團') {
+            colPairs = [[7, 8], [9, 10]];
+          } else if (grp === '小蟻團') {
+            colPairs = [[11, 12], [13, 14]];
           }
 
-          data.forEach(row => {
-            const vals = Object.values(row);
-            const fam = (vals[1] || '').trim();
-            
-            entries.forEach(e => {
-              if (fam !== e.family.trim()) return;
-              for (let i = 0; i < 3; i++) {
-                const child = (vals[2 + i*3] || '').trim();
-                const squad = (vals[3 + i*3] || '').trim();
-                const st = (vals[4 + i*3] || '出席').trim();
-                
-                if (squad === sub || squad === grp) {
-                  const k = `${e.family.trim()}|${e.child.trim()}`;
-                  statusMap[k] = { ...statusMap[k], filled:true, submitted:true, status:st };
-                }
-              }
-            });
-          });
+          colPairs.forEach(([childCol, statusCol]) => {
+            const rawChild = vals[childCol] || '';
+            const rawStatus = vals[statusCol] || '';
+            const cleanedChild = cleanName(rawChild);
 
-          results.innerHTML += `<li style="background:#f9fbff;font-weight:bold;margin-top:10px;">🟢 ${sub}</li>`;
+            if (cleanedChild && !cleanedChild.includes('無此成員')) {
+              filledStatusMap[cleanedChild] = rawStatus;
+            }
+          });
+        });
+
+        // 🟢 渲染各小隊成員狀態
+        for (const sub of allSubGroups) {
+          const entries = teamData[key][sub];
+          results.innerHTML += `<li style="background:#f9fbff; font-weight:bold; margin-top:10px;">🟢 ${sub}</li>`;
+
           entries.forEach(e => {
-            const k = `${e.family.trim()}|${e.child.trim()}`;
-            const s = statusMap[k];
-            let line;
-            if (s.filled) {
-              const ok = s.status.includes('出席');
-              line = `${s.family} _ ${s.child}：<span class="${ok?'status-present':'status-absent'}">${ok?'✅ 出席':'❌ 請假'}</span>`;
-            } else if (s.submitted) {
-              line = `${s.family} _ ${s.child}：<span class="status-unfilled">⚠️ 有填表，但未填此小隊</span>`;
+            const childName = e.child.trim();
+            
+            if (childName in filledStatusMap) {
+              const st = filledStatusMap[childName];
+              const ok = st.includes('出席');
+              line = `${e.family} _ ${childName}：<span class="${ok?'status-present':'status-absent'}">${ok?'✅ 出席':'❌ 請假'}</span>`;
             } else {
-              line = `${s.family} _ ${s.child}：<span class="status-unfilled">未填寫</span>`;
+              line = `${e.family} _ ${childName}：<span class="status-unfilled">未填寫</span>`;
             }
             results.innerHTML += `<li>${line}</li>`;
           });
